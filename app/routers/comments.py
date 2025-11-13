@@ -1,5 +1,5 @@
 from typing import List, Annotated
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
@@ -12,6 +12,10 @@ router = APIRouter(prefix="/comments", tags=["Comments"])
 # Type aliases
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
+CommentId = Annotated[int, Path(gt=0, description="ID del comentario")]
+PostId = Annotated[int, Path(gt=0, description="ID del post")]
+Skip = Annotated[int, Query(ge=0, le=1000, description="Número de registros a saltar para paginación")]
+Limit = Annotated[int, Query(ge=1, le=100, description="Número máximo de registros a retornar")]
 
 
 @router.post(
@@ -54,10 +58,10 @@ async def create_comment(comment_data: CommentCreate, current_user: CurrentUser,
     description="Obtiene todos los comentarios de un post específico"
 )
 async def get_comments_by_post(
-    post_id: int,
+    post_id: PostId,
     db: DBSession,
-    skip: int = Query(0, ge=0, description="Número de registros a saltar"),
-    limit: int = Query(10, ge=1, le=100, description="Número máximo de registros")
+    skip: Skip = 0,
+    limit: Limit = 10
 ):
     result = await db.execute(
         select(Comment)
@@ -75,7 +79,7 @@ async def get_comments_by_post(
     summary="Eliminar comentario",
     description="Elimina un comentario (soft delete, solo el autor)"
 )
-async def delete_comment(comment_id: int, current_user: CurrentUser, db: DBSession):
+async def delete_comment(comment_id: CommentId, current_user: CurrentUser, db: DBSession):
     result = await db.execute(
         select(Comment).where(Comment.id == comment_id, Comment.is_deleted == False)
     )

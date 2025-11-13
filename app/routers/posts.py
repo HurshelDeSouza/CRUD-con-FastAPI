@@ -1,5 +1,5 @@
 from typing import List, Annotated
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
@@ -13,6 +13,9 @@ router = APIRouter(prefix="/posts", tags=["Posts"])
 # Type aliases
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
+PostId = Annotated[int, Path(gt=0, description="ID del post")]
+Skip = Annotated[int, Query(ge=0, le=1000, description="Número de registros a saltar para paginación")]
+Limit = Annotated[int, Query(ge=1, le=100, description="Número máximo de registros a retornar")]
 
 
 @router.post(
@@ -67,13 +70,13 @@ async def create_post(post_data: PostCreate, current_user: CurrentUser, db: DBSe
 )
 async def get_posts(
     db: DBSession,
-    skip: int = Query(0, ge=0, description="Número de registros a saltar"),
-    limit: int = Query(10, ge=1, le=100, description="Número máximo de registros")
+    skip: Skip = 0,
+    limit: Limit = 10
 ):
     """
     Obtener lista de posts con paginación.
     
-    - **skip**: Offset para paginación (default: 0)
+    - **skip**: Offset para paginación (default: 0, max: 1000)
     - **limit**: Límite de resultados (default: 10, max: 100)
     """
     result = await db.execute(
@@ -94,7 +97,7 @@ async def get_posts(
     summary="Obtener post",
     description="Obtiene un post específico por ID"
 )
-async def get_post(post_id: int, db: DBSession):
+async def get_post(post_id: PostId, db: DBSession):
     result = await db.execute(
         select(Post)
         .where(Post.id == post_id, Post.is_deleted == False)
@@ -117,7 +120,7 @@ async def get_post(post_id: int, db: DBSession):
     summary="Actualizar post",
     description="Actualiza un post existente (solo el autor)"
 )
-async def update_post(post_id: int, post_data: PostUpdate, current_user: CurrentUser, db: DBSession):
+async def update_post(post_id: PostId, post_data: PostUpdate, current_user: CurrentUser, db: DBSession):
     """
     Actualizar un post existente.
     
@@ -178,7 +181,7 @@ async def update_post(post_id: int, post_data: PostUpdate, current_user: Current
     summary="Eliminar post",
     description="Elimina un post (soft delete, solo el autor)"
 )
-async def delete_post(post_id: int, current_user: CurrentUser, db: DBSession):
+async def delete_post(post_id: PostId, current_user: CurrentUser, db: DBSession):
     """
     Eliminar un post (soft delete).
     

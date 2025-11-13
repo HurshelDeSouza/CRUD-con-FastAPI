@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
@@ -12,6 +12,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
 # Type aliases
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
+UserId = Annotated[int, Path(gt=0, description="ID del usuario")]
 
 
 @router.get(
@@ -31,7 +32,7 @@ async def get_current_user_info(current_user: CurrentUser):
     summary="Obtener usuario por ID",
     description="Obtiene información de un usuario específico"
 )
-async def get_user(user_id: int, db: DBSession):
+async def get_user(user_id: UserId, db: DBSession):
     """Obtener usuario por ID"""
     result = await db.execute(
         select(User).where(User.id == user_id, User.is_deleted == False)
